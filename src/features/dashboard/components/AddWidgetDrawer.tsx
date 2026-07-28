@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   WIDGET_CATALOG,
-  WIDGET_GROUPS,
+  type WidgetCatalogEntry,
   type WidgetInstance,
 } from '../data/widgetCatalog';
 
@@ -10,6 +10,7 @@ interface AddWidgetDrawerProps {
   onClose: () => void;
   activeIds: string[];
   onAdd: (id: string) => void;
+  catalog?: WidgetCatalogEntry[];
 }
 
 export function AddWidgetDrawer({
@@ -17,14 +18,20 @@ export function AddWidgetDrawer({
   onClose,
   activeIds,
   onAdd,
+  catalog,
 }: AddWidgetDrawerProps) {
+  const entries = catalog ?? WIDGET_CATALOG;
+  const groups = useMemo(() => {
+    const set = new Set(entries.map((w) => w.group));
+    return Array.from(set);
+  }, [entries]);
   const grouped = useMemo(
     () =>
-      WIDGET_GROUPS.map((group) => ({
+      groups.map((group) => ({
         group,
-        items: WIDGET_CATALOG.filter((w) => w.group === group),
+        items: entries.filter((w) => w.group === group),
       })),
-    [],
+    [entries, groups],
   );
 
   return (
@@ -61,7 +68,7 @@ export function AddWidgetDrawer({
               <div className="eyebrow text-text-muted mb-2">{group}</div>
               {items.map((w, i) => {
                 const isActive = activeIds.includes(w.id);
-                const locked = !!w.requires;
+                const locked = catalog ? !w.available : !!w.requires;
                 return (
                   <div
                     key={w.id}
@@ -71,7 +78,7 @@ export function AddWidgetDrawer({
                     <div>
                       <div className="text-[13.5px] font-semibold">{w.name}</div>
                       <div className="text-xs text-text-secondary mt-0.5">{w.desc}</div>
-                      {locked && (
+                      {locked && w.requires && (
                         <div className="flex items-center gap-1 mt-1 text-[11.5px] text-status-orange">
                           Requires {w.requires}
                         </div>

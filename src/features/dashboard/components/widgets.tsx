@@ -7,6 +7,8 @@ import {
 } from '@/shared/data/projects';
 import { Input } from '@/shared/components/ui';
 import { fetchTenderSnapshot, type TenderSnapshot } from '@/features/tenders/api/tenderApi';
+import { fetchSuppliers } from '@/features/suppliers/api/supplierApi';
+import type { Supplier } from '@/features/suppliers/data/suppliers';
 import { STATUS_TONE } from '@/features/tenders/data/tenders';
 
 function Row({
@@ -170,6 +172,46 @@ export function TenderSnapshotWidget({ onNavigate }: { onNavigate: (to: string) 
       <button
         type="button"
         onClick={() => onNavigate('/tenders')}
+        className="w-full text-center text-xs text-text-secondary hover:text-gold mt-2 pt-2 border-t border-border-subtle cursor-pointer bg-transparent"
+      >
+        See All →
+      </button>
+    </>
+  );
+}
+
+export function SupplierSnapshotWidget({ onNavigate }: { onNavigate: (to: string) => void }) {
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSuppliers({ sortBy: 'createdAt', sortOrder: 'desc', limit: 10 })
+      .then((res) => setSuppliers(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div className="text-xs text-text-muted py-2">Loading suppliers...</div>;
+  }
+
+  if (suppliers.length === 0) {
+    return <div className="text-xs text-text-muted py-2">No suppliers yet.</div>;
+  }
+
+  return (
+    <>
+      {suppliers.map((s) => (
+        <Row
+          key={s.id}
+          title={s.company}
+          meta={`${s.trade} · ${s.contact}`}
+          right={<Pill tone={s.usedBefore ? 'green' : 'blue'}>{s.usedBefore ? 'USED' : 'NEW'}</Pill>}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={() => onNavigate('/suppliers')}
         className="w-full text-center text-xs text-text-secondary hover:text-gold mt-2 pt-2 border-t border-border-subtle cursor-pointer bg-transparent"
       >
         See All →

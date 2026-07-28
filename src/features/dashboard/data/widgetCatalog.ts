@@ -8,6 +8,8 @@ export interface WidgetCatalogEntry {
   name: string;
   desc: string;
   requires?: string;
+  available?: boolean;
+  active?: boolean;
 }
 
 export const GRID_COLUMN_COUNT = 12;
@@ -102,6 +104,12 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     desc: 'Budget and risk summary per project.',
   },
   {
+    id: 'suppliers-snapshot',
+    group: 'Projects',
+    name: 'Recent suppliers',
+    desc: 'Recently added suppliers on file.',
+  },
+  {
     id: 'docusign',
     group: 'Integrations',
     name: 'DocuSign — awaiting signature',
@@ -131,6 +139,7 @@ export const DEFAULT_WIDGETS: WidgetInstance[] = [
   makeWidget('sub-invoices', { colSpan: 4, rowSpan: 2 }),
   makeWidget('cash-position', { colSpan: 4, rowSpan: 1 }),
   makeWidget('tender-snapshot', { colSpan: 4, rowSpan: 1 }),
+  makeWidget('suppliers-snapshot', { colSpan: 4, rowSpan: 1 }),
   makeWidget('docusign', { colSpan: 4, rowSpan: 1 }),
   makeWidget('brain-dump', { colSpan: 4, rowSpan: 2 }),
   makeWidget('live-projects', { colSpan: 8, rowSpan: 2 }),

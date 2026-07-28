@@ -3,12 +3,15 @@ import { GripVertical, Plus, X } from 'lucide-react';
 import {
   DEFAULT_COL_SPAN,
   DEFAULT_ROW_SPAN,
+  DEFAULT_WIDGETS,
   GRID_ROW_HEIGHT_PX,
   getSyncBadge,
   getWidgetCatalogEntry,
+  type WidgetCatalogEntry,
   type WidgetInstance,
   type WidgetSpan,
 } from '../data/widgetCatalog';
+import { fetchDashboardLayout, saveDashboardLayout } from '../api/dashboardApi';
 import { AddWidgetDrawer } from './AddWidgetDrawer';
 import { ResizeHandle } from './ResizeHandle';
 import {
@@ -21,6 +24,7 @@ import {
   LiveProjectsWidget,
   NotConnectedWidget,
   SubInvoicesWidget,
+  SupplierSnapshotWidget,
   TenderSnapshotWidget,
   WaitingClientWidget,
 } from './widgets';
@@ -64,6 +68,8 @@ function WidgetBody({ id, onNavigate }: { id: string; onNavigate: (to: string) =
       return <BrainDumpWidget />;
       case 'tender-snapshot':
         return <TenderSnapshotWidget onNavigate={onNavigate} />;
+      case 'suppliers-snapshot':
+        return <SupplierSnapshotWidget onNavigate={onNavigate} />;
     case 'live-projects':
       return <LiveProjectsWidget />;
     case 'docusign':
@@ -79,19 +85,41 @@ function WidgetBody({ id, onNavigate }: { id: string; onNavigate: (to: string) =
 export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [widgets, setWidgets] = useState<WidgetInstance[]>([
-    { id: 'cash-at-risk', colSpan: 4, rowSpan: 2 },
-    { id: 'ceo-actions', colSpan: 4, rowSpan: 2 },
-    { id: 'waiting-client', colSpan: 4, rowSpan: 1 },
-    { id: 'client-invoices', colSpan: 4, rowSpan: 2 },
-    { id: 'sub-invoices', colSpan: 4, rowSpan: 2 },
-    { id: 'cash-position', colSpan: 4, rowSpan: 1 },
-    { id: 'tender-snapshot', colSpan: 4, rowSpan: 1 },
-    { id: 'docusign', colSpan: 4, rowSpan: 1 },
-    { id: 'brain-dump', colSpan: 4, rowSpan: 2 },
-    { id: 'live-projects', colSpan: 8, rowSpan: 2 },
-  ]);
+  const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
+  const [catalogApi, setCatalogApi] = useState<WidgetCatalogEntry[] | null>(null);
+  const [layoutLoading, setLayoutLoading] = useState(true);
   const { show } = useToast();
+  const lastSavedRef = useRef('');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    fetchDashboardLayout()
+      .then((res) => {
+        setWidgets(res.widgets);
+        setCatalogApi(res.catalog);
+        lastSavedRef.current = JSON.stringify(res.widgets);
+      })
+      .catch(() => {
+        setWidgets(DEFAULT_WIDGETS);
+        lastSavedRef.current = JSON.stringify(DEFAULT_WIDGETS);
+      })
+      .finally(() => setLayoutLoading(false));
+  }, []);
+
+  useEffect(() => {
+    const current = JSON.stringify(widgets);
+    if (current === lastSavedRef.current) return;
+    if (widgets.length === 0) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      lastSavedRef.current = JSON.stringify(widgets);
+      saveDashboardLayout(widgets.filter((w) => w.id !== 'suppliers-snapshot')).catch(() => {});
+    }, 2000);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [widgets]);
+
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const dragOverIndexRef = useRef<number | null>(null);
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
@@ -359,7 +387,11 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
         }
       />
 
-      {widgets.length === 0 ? (
+      {layoutLoading ? (
+        <div className="flex items-center justify-center text-center py-24 text-text-secondary">
+          <span className="text-[13px]">Loading your dashboard…</span>
+        </div>
+      ) : widgets.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-24 text-text-secondary">
           <h3 className="text-text-primary m-0 mb-1.5 text-base">Your dashboard is empty</h3>
           <p className="text-[13px] m-0 mb-4">
@@ -442,6 +474,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
         onClose={() => setDrawerOpen(false)}
         activeIds={activeIds}
         onAdd={addWidget}
+        catalog={catalogApi ?? undefined}
       />
     </AppShell>
   );

@@ -7,6 +7,8 @@ export interface SupplierListFilters {
   includeDeleted?: boolean;
   page?: number;
   limit?: number;
+  sortBy?: 'company' | 'trade' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface SupplierListResponse {
@@ -39,6 +41,8 @@ export async function fetchSuppliers(
   if (filters?.includeDeleted) params.set('includeDeleted', 'true');
   if (filters?.page) params.set('page', String(filters.page));
   if (filters?.limit) params.set('limit', String(filters.limit));
+  if (filters?.sortBy) params.set('sortBy', filters.sortBy);
+  if (filters?.sortOrder) params.set('sortOrder', filters.sortOrder);
   const qs = params.toString();
   return apiFetch<SupplierListResponse>(`/suppliers${qs ? `?${qs}` : ''}`);
 }
