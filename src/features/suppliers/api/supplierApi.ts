@@ -60,3 +60,7 @@ export async function restoreSupplier(
 ): Promise<Supplier> {
   return apiFetch<Supplier>(`/suppliers/${id}/restore`, { method: 'POST' });
 }
+
+export async function permanentDeleteSupplier(id: string): Promise<void> {
+  return apiFetch<void>(`/suppliers/${id}/permanent`, { method: 'DELETE' });
+}

@@ -61,9 +61,11 @@ export function SupplierCard({
 export function ArchivedSupplierCard({
   supplier,
   onRestore,
+  onDeleteForever,
 }: {
   supplier: Supplier;
   onRestore: (id: string) => void;
+  onDeleteForever: (id: string) => void;
 }) {
   return (
     <div className="rounded-xl p-5 flex flex-col bg-bg-panel border border-border-subtle opacity-70">
@@ -73,15 +75,26 @@ export function ArchivedSupplierCard({
       </div>
       <div className="flex items-center justify-between mt-auto pt-4 border-t border-border-subtle">
         <Pill tone="red">ARCHIVED</Pill>
-        <button
-          type="button"
-          onClick={() => onRestore(supplier.id)}
-          className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-green cursor-pointer"
-          aria-label="Restore supplier"
-          title="Restore this supplier"
-        >
-          <RotateCcw size={12} />
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onDeleteForever(supplier.id)}
+            className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-red cursor-pointer hover:bg-status-red-bg"
+            aria-label="Delete supplier forever"
+            title="Permanently delete this supplier"
+          >
+            <Trash2 size={12} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onRestore(supplier.id)}
+            className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-green cursor-pointer"
+            aria-label="Restore supplier"
+            title="Restore this supplier"
+          >
+            <RotateCcw size={12} />
+          </button>
+        </div>
       </div>
     </div>
   );

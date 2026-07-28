@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Loader2 } from 'lucide-react';
 import { AppShell, PageHeader } from '@/shared/components/layout/AppShell';
-import { Button, Input, Select, useToast } from '@/shared/components/ui';
+import { Button, Input, Select, ConfirmDialog, useToast } from '@/shared/components/ui';
 import {
   TRADES,
   SEED_SUPPLIERS,
@@ -12,6 +12,7 @@ import {
   fetchSuppliers,
   deleteSupplier as apiDeleteSupplier,
   restoreSupplier as apiRestoreSupplier,
+  permanentDeleteSupplier as apiPermanentDeleteSupplier,
 } from '../api/supplierApi';
 import { SupplierCard, ArchivedSupplierCard } from './SupplierCard';
 import { AddSupplierModal } from './AddSupplierModal';
@@ -32,6 +33,7 @@ export function SuppliersDirectoryPage({
   const [search, setSearch] = useState('');
   const [tradeFilter, setTradeFilter] = useState<'All trades' | Trade>('All trades');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { show } = useToast();
 
   useEffect(() => {
@@ -85,6 +87,20 @@ export function SuppliersDirectoryPage({
       }
     } catch {
       show('Failed to restore supplier');
+    }
+  }
+
+  async function permanentDelete() {
+    if (!confirmDeleteId) return;
+    const s = suppliers.find((x) => x.id === confirmDeleteId);
+    try {
+      await apiPermanentDeleteSupplier(confirmDeleteId);
+      setSuppliers((prev) => prev.filter((x) => x.id !== confirmDeleteId));
+      if (s) show(`Permanently deleted ${s.company}`);
+    } catch {
+      show('Failed to delete supplier');
+    } finally {
+      setConfirmDeleteId(null);
     }
   }
 
@@ -193,6 +209,7 @@ export function SuppliersDirectoryPage({
                     key={supplier.id}
                     supplier={supplier}
                     onRestore={restore}
+                    onDeleteForever={setConfirmDeleteId}
                   />
                 ))}
               </div>
@@ -205,6 +222,16 @@ export function SuppliersDirectoryPage({
         open={showNewModal}
         onClose={() => setShowNewModal(false)}
         onCreate={createSupplier}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Delete supplier forever?"
+        message="This action cannot be undone. The supplier record will be permanently removed."
+        confirmLabel="Delete forever"
+        variant="danger"
+        onConfirm={permanentDelete}
+        onCancel={() => setConfirmDeleteId(null)}
       />
     </AppShell>
   );
