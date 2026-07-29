@@ -378,9 +378,18 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
   const [body, setBody] = useState(
     `Dear ${detail.contact},\n\nI am writing to you regarding ${detail.company}.\n\nPlease get in touch at your earliest convenience.\n\nKind regards,\n[Your Name]\nICARO Projects`,
   );
+  const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(() => new Set(detail.dropboxLinks.map((l) => l.id)));
   const [errors, setErrors] = useState<Partial<Record<'to' | 'subject' | 'body', string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const { show } = useToast();
+
+  function toggleLink(id: string) {
+    setSelectedLinkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   function handleSendClick() {
     const next: Partial<Record<'to' | 'subject' | 'body', string>> = {};
@@ -398,19 +407,27 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
     setTo('');
     setSubject('');
     setBody('');
+    setSelectedLinkIds(new Set());
     onClose();
   }
+
+  function handleClose() {
+    setErrors({});
+    onClose();
+  }
+
+  const selectedCount = selectedLinkIds.size;
 
   return (
     <>
       <Modal
         open={open}
         title="Send Email"
-        onClose={onClose}
+        onClose={handleClose}
         maxWidth="max-w-lg"
         footer={
           <>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={handleClose}>Cancel</Button>
             <Button variant="primary" onClick={handleSendClick}>Send Email</Button>
           </>
         }
@@ -421,14 +438,45 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
         <Field label="Subject" error={errors.subject}>
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
         </Field>
+
+        {detail.dropboxLinks.length > 0 && (
+          <div>
+            <p className="eyebrow text-text-muted mb-1.5 text-[11px] uppercase tracking-wider">
+              Dropbox Links to Include
+            </p>
+            <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+              {detail.dropboxLinks.map((link) => (
+                <label
+                  key={link.id}
+                  className="flex items-start gap-2 rounded-md px-2.5 py-1.5 bg-bg-panel-hover border border-border-subtle cursor-pointer text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedLinkIds.has(link.id)}
+                    onChange={() => toggleLink(link.id)}
+                    className="mt-0.5 accent-gold"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-text-primary text-[13px]">{link.fileName}</span>
+                    {link.description && (
+                      <span className="text-text-muted text-[11px] ml-1">— {link.description}</span>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Field label="Body" error={errors.body}>
           <Textarea rows={12} value={body} onChange={(e) => setBody(e.target.value)} className="font-mono text-[12px] leading-relaxed" />
         </Field>
       </Modal>
+
       <ConfirmDialog
         open={showConfirm}
         title="Send Email"
-        message={`Send this email to ${to}?`}
+        message={`Send email to ${to}${selectedCount > 0 ? ` with ${selectedCount} Dropbox link(s)` : ''}?`}
         confirmLabel="Send"
         variant="primary"
         onConfirm={handleConfirmSend}
