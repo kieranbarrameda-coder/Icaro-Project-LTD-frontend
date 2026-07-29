@@ -20,8 +20,13 @@ export interface CreateTenderPayload {
 export interface UpdateTenderPayload {
   client?: string;
   job?: string;
+  received?: string;
   due?: string;
   email?: string;
+}
+
+export async function permanentDeleteTender(id: string): Promise<void> {
+  await apiFetch(`/tenders/${id}/permanent`, { method: 'DELETE' });
 }
 
 export async function fetchTenders(filters?: TenderListFilters): Promise<Tender[]> {

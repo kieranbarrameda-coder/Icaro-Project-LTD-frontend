@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, RotateCcw, Loader2 } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, Loader2, ChevronDown } from 'lucide-react';
 import { AppShell, PageHeader } from '@/shared/components/layout/AppShell';
-import { Button, Input, Select, Pill, useToast } from '@/shared/components/ui';
+import { Button, Input, Select, Pill, useToast, ConfirmDialog } from '@/shared/components/ui';
 import { daysUntil, formatDate, formatGBP } from '@/shared/lib/format';
 import {
   TENDER_STATUSES,
@@ -13,6 +13,7 @@ import {
   updateTenderStatus as apiUpdateStatus,
   deleteTender as apiDeleteTender,
   restoreTender as apiRestoreTender,
+  permanentDeleteTender as apiPermanentDeleteTender,
 } from '../api/tenderApi';
 import { StatusDropdown } from './StatusDropdown';
 import { NewTenderModal } from './NewTenderModal';
@@ -137,7 +138,7 @@ function TenderMobileCard({
   );
 }
 
-function DeletedTenderRow({ tender, onRestore }: { tender: Tender; onRestore: (id: string) => void }) {
+function DeletedTenderRow({ tender, onRestore, onDeleteForever }: { tender: Tender; onRestore: (id: string) => void; onDeleteForever: (id: string) => void }) {
   return (
     <div className="grid grid-cols-12 gap-2 px-5 py-3 items-start border-b border-border-subtle">
       <div className="col-span-2 text-[13.5px] text-text-secondary font-medium">{tender.client}</div>
@@ -150,7 +151,7 @@ function DeletedTenderRow({ tender, onRestore }: { tender: Tender; onRestore: (i
       <div className="col-span-1">
         <Pill tone="red">DELETED</Pill>
       </div>
-      <div className="col-span-1 flex justify-end">
+      <div className="col-span-1 flex justify-end gap-1">
         <button
           type="button"
           onClick={() => onRestore(tender.id)}
@@ -159,6 +160,15 @@ function DeletedTenderRow({ tender, onRestore }: { tender: Tender; onRestore: (i
           title="Restore this tender"
         >
           <RotateCcw size={12} />
+        </button>
+        <button
+          type="button"
+          onClick={() => onDeleteForever(tender.id)}
+          className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-red cursor-pointer hover:bg-status-red-bg"
+          aria-label="Delete tender forever"
+          title="Permanently delete this tender"
+        >
+          <Trash2 size={12} />
         </button>
       </div>
     </div>
@@ -176,6 +186,8 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
   const [editingTender, setEditingTender] = useState<Tender | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [tenderToSend, setTenderToSend] = useState<Tender | null>(null);
+  const [archiveCollapsed, setArchiveCollapsed] = useState(true);
+  const [confirmPermanentDeleteId, setConfirmPermanentDeleteId] = useState<string | null>(null);
   const { show } = useToast();
 
   useEffect(() => {
@@ -223,6 +235,17 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
       }
     } catch {
       show('Failed to restore tender');
+    }
+  }
+
+  async function permanentDelete(id: string) {
+    try {
+      await apiPermanentDeleteTender(id);
+      setTenders((prev) => prev.filter((t) => t.id !== id));
+      setConfirmPermanentDeleteId(null);
+      show('Tender permanently deleted');
+    } catch {
+      show('Failed to permanently delete tender');
     }
   }
 
@@ -318,7 +341,7 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
         </div>
       ) : (
         <>
-          <div className="rounded-xl overflow-hidden hidden md:block bg-bg-panel border border-border-subtle">
+          <div className="rounded-xl hidden md:block bg-bg-panel border border-border-subtle">
             <div className="grid grid-cols-12 gap-2 px-5 py-3 border-b border-border-subtle">
               {['Client', 'Job Description', 'Received', 'Due Date', 'Contract Sum', 'Status', ''].map(
                 (h, i) => (
@@ -379,54 +402,79 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
 
           {deletedTenders.length > 0 && (
             <div className="mt-6">
-              <div className="eyebrow text-text-muted mb-2">Deleted — {deletedTenders.length}</div>
-              <div className="rounded-xl overflow-hidden hidden md:block bg-bg-panel border border-border-subtle opacity-70">
-                {deletedTenders.map((t) => (
-                  <DeletedTenderRow key={t.id} tender={t} onRestore={restore} />
-                ))}
-              </div>
-              <div className="md:hidden space-y-3">
-                {deletedTenders.map((t) => (
-                  <div
-                    key={t.id}
-                    className="rounded-xl px-4 py-4 bg-bg-panel border border-border-subtle opacity-70"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0 mr-2">
-                        <div className="text-sm text-text-secondary font-semibold">{t.client}</div>
-                        <div className="text-xs text-text-muted mt-0.5 truncate">{t.job}</div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => restore(t.id)}
-                        className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-green cursor-pointer"
-                        aria-label="Restore tender"
+              <button
+                type="button"
+                onClick={() => setArchiveCollapsed((c) => !c)}
+                className="flex items-center gap-2 w-full text-left eyebrow text-text-muted mb-2 cursor-pointer"
+              >
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-150 ${archiveCollapsed ? '-rotate-90' : ''}`}
+                />
+                Deleted — {deletedTenders.length}
+              </button>
+              {!archiveCollapsed && (
+                <>
+                  <div className="rounded-xl hidden md:block bg-bg-panel border border-border-subtle opacity-70">
+                    {deletedTenders.map((t) => (
+                      <DeletedTenderRow key={t.id} tender={t} onRestore={restore} onDeleteForever={(id) => setConfirmPermanentDeleteId(id)} />
+                    ))}
+                  </div>
+                  <div className="md:hidden space-y-3">
+                    {deletedTenders.map((t) => (
+                      <div
+                        key={t.id}
+                        className="rounded-xl px-4 py-4 bg-bg-panel border border-border-subtle opacity-70"
                       >
-                        <RotateCcw size={12} />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-4 mb-2">
-                      <div>
-                        <div className="eyebrow text-text-muted">Received</div>
-                        <div className="text-xs text-text-muted">{formatDate(t.received)}</div>
-                      </div>
-                      <div>
-                        <div className="eyebrow text-text-muted">Due</div>
-                        <div className="text-xs text-text-muted">{formatDate(t.due)}</div>
-                      </div>
-                      <div className="ml-auto text-right">
-                        <div className="eyebrow text-text-muted">Amount</div>
-                        <div className="text-sm text-text-muted font-semibold tabular-nums">
-                          {t.contractSum != null ? formatGBP(t.contractSum) : '—'}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0 mr-2">
+                            <div className="text-sm text-text-secondary font-semibold">{t.client}</div>
+                            <div className="text-xs text-text-muted mt-0.5 truncate">{t.job}</div>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => restore(t.id)}
+                              className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-green cursor-pointer"
+                              aria-label="Restore tender"
+                            >
+                              <RotateCcw size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmPermanentDeleteId(t.id)}
+                              className="flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-status-red cursor-pointer hover:bg-status-red-bg"
+                              aria-label="Delete tender forever"
+                              title="Permanently delete this tender"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mb-2">
+                          <div>
+                            <div className="eyebrow text-text-muted">Received</div>
+                            <div className="text-xs text-text-muted">{formatDate(t.received)}</div>
+                          </div>
+                          <div>
+                            <div className="eyebrow text-text-muted">Due</div>
+                            <div className="text-xs text-text-muted">{formatDate(t.due)}</div>
+                          </div>
+                          <div className="ml-auto text-right">
+                            <div className="eyebrow text-text-muted">Amount</div>
+                            <div className="text-sm text-text-muted font-semibold tabular-nums">
+                              {t.contractSum != null ? formatGBP(t.contractSum) : '—'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <Pill tone="red">DELETED</Pill>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex justify-end">
-                      <Pill tone="red">DELETED</Pill>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </div>
           )}
         </>
@@ -452,6 +500,16 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
         tender={tenderToSend}
         onClose={() => { setShowEmailModal(false); setTenderToSend(null); }}
         onSend={() => { setShowEmailModal(false); setTenderToSend(null); }}
+      />
+
+      <ConfirmDialog
+        open={confirmPermanentDeleteId !== null}
+        title="Permanently delete tender?"
+        message="This action cannot be undone. The tender record will be permanently removed from the system."
+        confirmLabel="Delete forever"
+        variant="danger"
+        onConfirm={() => { if (confirmPermanentDeleteId) permanentDelete(confirmPermanentDeleteId); }}
+        onCancel={() => setConfirmPermanentDeleteId(null)}
       />
     </AppShell>
   );
