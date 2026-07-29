@@ -113,7 +113,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       lastSavedRef.current = JSON.stringify(widgets);
-      saveDashboardLayout(widgets.filter((w) => w.id !== 'suppliers-snapshot')).catch(() => {});
+      saveDashboardLayout(widgets).catch(() => {});
     }, 2000);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
