@@ -69,7 +69,6 @@ export function SupplierDetailModal({
       setLoading(true);
       setDetail(null);
       setErrors({});
-      setMgmtCollapsed(true);
       setConfirmAction(null);
       fetchSupplierById(supplierId)
         .then((d) => {
