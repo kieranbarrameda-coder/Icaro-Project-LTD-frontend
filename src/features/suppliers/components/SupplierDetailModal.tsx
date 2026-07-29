@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, ExternalLink, FileText, Loader2 } from 'lucide-react';
+import { ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { Modal, Button, Input, Textarea, Field, Select, ConfirmDialog, useToast } from '@/shared/components/ui';
 import { TRADES, type SupplierDetail, type Trade } from '../data/suppliers';
 import { supplierSchema, type SupplierInput } from '../data/validation';
@@ -60,7 +60,6 @@ export function SupplierDetailModal({
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [mgmtCollapsed, setMgmtCollapsed] = useState(true);
   const [confirmAction, setConfirmAction] = useState<'archive' | 'restore' | 'deleteForever' | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const { show } = useToast();
@@ -181,6 +180,20 @@ export function SupplierDetailModal({
         maxWidth="max-w-lg"
         footer={
           <>
+            {isDeleted ? (
+              <>
+                <Button variant="ghost" className="!text-status-green" onClick={() => setConfirmAction('restore')} disabled={submitting}>
+                  Restore
+                </Button>
+                <Button variant="ghost" className="!text-status-red mr-auto" onClick={() => setConfirmAction('deleteForever')} disabled={submitting}>
+                  Delete Forever
+                </Button>
+              </>
+            ) : (
+              <Button variant="ghost" className="!text-status-red mr-auto" onClick={() => setConfirmAction('archive')} disabled={submitting}>
+                Archive
+              </Button>
+            )}
             {!isDeleted && (
               <Button variant="secondary" onClick={() => setShowEmailModal(true)} disabled={loading || submitting}>
                 Send Email
@@ -278,46 +291,6 @@ export function SupplierDetailModal({
               </label>
             </div>
 
-            {/* Compliance */}
-            {!isDeleted && (
-              <div>
-                <p className="eyebrow text-text-muted mb-2 text-[11px] uppercase tracking-wider">Compliance</p>
-                <div className="space-y-2">
-                  <ComplianceRow label="RAMS" url={detail.ramsUrl} expiry={detail.ramsExpiry} />
-                  <ComplianceRow label="Insurance" url={detail.insuranceUrl} expiry={detail.insuranceExpiry} />
-                  <ComplianceRow label="CIS" status={detail.cisStatus} expiry={detail.cisExpiry} />
-                </div>
-              </div>
-            )}
-
-            {/* Documents */}
-            {!isDeleted && detail.documents.length > 0 && (
-              <div>
-                <p className="eyebrow text-text-muted mb-2 text-[11px] uppercase tracking-wider">Documents</p>
-                <div className="space-y-2">
-                  {detail.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 bg-bg-panel-hover border border-border-subtle">
-                      <FileText size={16} className="text-text-secondary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-text-primary truncate">{doc.fileName}</p>
-                        <p className="text-[11px] text-text-muted">
-                          {doc.category} — {formatFileSize(doc.fileSize)}
-                        </p>
-                      </div>
-                      <a
-                        href={doc.dropboxLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-xs text-gold hover:underline flex-shrink-0"
-                      >
-                        Open <ExternalLink size={11} />
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Dropbox Links */}
             {!isDeleted && detail.dropboxLinks.length > 0 && (
               <div>
@@ -348,51 +321,6 @@ export function SupplierDetailModal({
                 </div>
               </div>
             )}
-
-            {/* Management collapsible */}
-            <div className="border-t border-border-subtle pt-4">
-              <button
-                type="button"
-                onClick={() => setMgmtCollapsed((c) => !c)}
-                className="flex items-center gap-2 w-full text-left eyebrow text-text-muted text-[11px] uppercase tracking-wider cursor-pointer"
-              >
-                <ChevronDown
-                  size={14}
-                  className={`transition-transform duration-150 ${mgmtCollapsed ? '-rotate-90' : ''}`}
-                />
-                Management
-              </button>
-              {!mgmtCollapsed && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {!isDeleted ? (
-                    <Button
-                      variant="ghost"
-                      className="!text-status-red"
-                      onClick={() => setConfirmAction('archive')}
-                    >
-                      Archive
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        variant="ghost"
-                        className="!text-status-green"
-                        onClick={() => setConfirmAction('restore')}
-                      >
-                        Restore
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        className="!text-status-red"
-                        onClick={() => setConfirmAction('deleteForever')}
-                      >
-                        Delete Forever
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         ) : null}
       </Modal>
@@ -435,30 +363,6 @@ export function SupplierDetailModal({
         onCancel={() => setConfirmAction(null)}
       />
     </>
-  );
-}
-
-/* ─── Compliance row ─── */
-function ComplianceRow({ label, url, expiry, status }: { label: string; url?: string | null; expiry?: string | null; status?: string }) {
-  const hasDoc = !!url && url !== 'null';
-  const hasExpiry = !!expiry && expiry !== 'null';
-  const statusText = status
-    ? status
-    : hasDoc
-      ? 'Uploaded'
-      : 'Missing';
-  const tone = status === 'Unregistered' || (!hasDoc && !status)
-    ? 'text-status-red'
-    : 'text-status-green';
-
-  return (
-    <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-bg-panel-hover border border-border-subtle text-sm">
-      <span className="text-text-secondary">{label}</span>
-      <span className={`text-xs ${tone}`}>
-        {statusText}
-        {hasExpiry && <span className="text-text-muted ml-1">— Exp: {expiry?.slice(0, 10)}</span>}
-      </span>
-    </div>
   );
 }
 

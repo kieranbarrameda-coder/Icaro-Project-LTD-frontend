@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { ChevronDown, Plus, Loader2 } from 'lucide-react';
 import { AppShell, PageHeader } from '@/shared/components/layout/AppShell';
 import { Button, Input, Select, ConfirmDialog, useToast } from '@/shared/components/ui';
 import {
@@ -37,6 +37,7 @@ export function SuppliersDirectoryPage({
   const [showNewModal, setShowNewModal] = useState(false);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [archiveCollapsed, setArchiveCollapsed] = useState(true);
   const { show } = useToast();
 
   useEffect(() => {
@@ -203,19 +204,29 @@ export function SuppliersDirectoryPage({
 
           {archivedSuppliers.length > 0 && (
             <div className="mt-8">
-              <div className="eyebrow text-text-muted mb-2">
+              <button
+                type="button"
+                onClick={() => setArchiveCollapsed((c) => !c)}
+                className="flex items-center gap-2 w-full text-left eyebrow text-text-muted mb-2 cursor-pointer"
+              >
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform duration-150 ${archiveCollapsed ? '-rotate-90' : ''}`}
+                />
                 Archived — {archivedSuppliers.length}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {archivedSuppliers.map((supplier) => (
-                  <ArchivedSupplierCard
-                    key={supplier.id}
-                    supplier={supplier}
-                    onRestore={restore}
-                    onDeleteForever={setConfirmDeleteId}
-                  />
-                ))}
-              </div>
+              </button>
+              {!archiveCollapsed && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {archivedSuppliers.map((supplier) => (
+                    <ArchivedSupplierCard
+                      key={supplier.id}
+                      supplier={supplier}
+                      onRestore={restore}
+                      onDeleteForever={setConfirmDeleteId}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </>
