@@ -9,6 +9,7 @@ import { Input } from '@/shared/components/ui';
 import { fetchTenderSnapshot, type TenderSnapshot } from '@/features/tenders/api/tenderApi';
 import { fetchSuppliers } from '@/features/suppliers/api/supplierApi';
 import type { Supplier } from '@/features/suppliers/data/suppliers';
+import { SEED_SUPPLIERS } from '@/features/suppliers/data/suppliers';
 import { STATUS_TONE } from '@/features/tenders/data/tenders';
 
 function Row({
@@ -187,7 +188,7 @@ export function SupplierSnapshotWidget({ onNavigate }: { onNavigate: (to: string
   useEffect(() => {
     fetchSuppliers({ sortBy: 'createdAt', sortOrder: 'desc', limit: 10 })
       .then((res) => setSuppliers(res.data))
-      .catch(() => {})
+      .catch(() => setSuppliers(SEED_SUPPLIERS))
       .finally(() => setLoading(false));
   }, []);
 
