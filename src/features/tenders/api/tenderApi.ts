@@ -45,6 +45,10 @@ export async function updateTenderStatus(id: string, status: TenderStatus): Prom
   return apiFetch<Tender>(`/tenders/${id}/status`, { method: 'PATCH', body: { status } });
 }
 
+export async function updateTenderEstimate(id: string, contractSum: number): Promise<Tender> {
+  return apiFetch<Tender>(`/tenders/${id}/estimate`, { method: 'PATCH', body: { contractSum } });
+}
+
 export async function deleteTender(id: string): Promise<{ deleted: boolean }> {
   return apiFetch<{ deleted: boolean }>(`/tenders/${id}`, { method: 'DELETE' });
 }

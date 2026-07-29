@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Modal, Button, Input, Field, Select, ConfirmDialog, useToast } from '@/shared/components/ui';
 import { TENDER_STATUSES, type Tender, type TenderStatus } from '../data/tenders';
 import { newTenderSchema, type NewTenderInput } from '../data/validation';
-import { updateTender, deleteTender } from '../api/tenderApi';
+import { updateTender, updateTenderStatus, updateTenderEstimate } from '../api/tenderApi';
 
 interface EditTenderModalProps {
   open: boolean;
@@ -81,11 +81,20 @@ export function EditTenderModal({ open, tender, onClose, onUpdate, onDelete, onS
     const data = parsed.data;
     setSubmitting(true);
     try {
-      const updated = await updateTender(tender.id, {
+      let updated = await updateTender(tender.id, {
         client: data.client,
         job: data.job,
         due: new Date(data.due).toISOString(),
       });
+
+      if (data.status !== tender.status) {
+        updated = await updateTenderStatus(tender.id, data.status);
+      }
+
+      if (data.contractSum !== tender.contractSum) {
+        updated = await updateTenderEstimate(tender.id, data.contractSum);
+      }
+
       onUpdate(updated);
       show(`Updated ${updated.client} — ${updated.job}`);
       setErrors({});
@@ -98,17 +107,9 @@ export function EditTenderModal({ open, tender, onClose, onUpdate, onDelete, onS
 
   async function handleDeleteConfirm() {
     if (!tender) return;
-    setSubmitting(true);
-    try {
-      await deleteTender(tender.id);
-      setShowDeleteConfirm(false);
-      onDelete(tender.id);
-      onClose();
-    } catch {
-      show('Failed to delete tender');
-    } finally {
-      setSubmitting(false);
-    }
+    setShowDeleteConfirm(false);
+    onDelete(tender.id);
+    onClose();
   }
 
   function handleSend() {
