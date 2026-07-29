@@ -26,6 +26,44 @@ export interface Supplier {
   deletedAt: string | null;
 }
 
+export interface SupplierDocument {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  dropboxPath: string;
+  dropboxLink: string;
+  category: string;
+  uploadedAt: string;
+}
+
+export interface DropboxLink {
+  id: string;
+  dropboxPath: string;
+  dropboxUrl: string;
+  fileName: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  description: string | null;
+  uploadedBy: string;
+  createdAt: string;
+}
+
+export type CisStatus = 'Registered' | 'Verified' | 'Gross' | 'Unregistered';
+
+export interface SupplierDetail extends Supplier {
+  ramsUrl: string | null;
+  ramsExpiry: string | null;
+  insuranceUrl: string | null;
+  insuranceExpiry: string | null;
+  cisStatus: CisStatus;
+  cisExpiry: string | null;
+  dropboxAccountId: string | null;
+  dropboxFolderPath: string | null;
+  documents: SupplierDocument[];
+  dropboxLinks: DropboxLink[];
+}
+
 export const SEED_SUPPLIERS: Supplier[] = [
   {
     id: 's1',

@@ -1,5 +1,5 @@
 import { apiFetch } from '@/lib/api/httpClient';
-import type { Supplier, Trade } from '../data/suppliers';
+import type { Supplier, SupplierDetail, Trade } from '../data/suppliers';
 
 export interface SupplierListFilters {
   trade?: Trade;
@@ -47,10 +47,21 @@ export async function fetchSuppliers(
   return apiFetch<SupplierListResponse>(`/suppliers${qs ? `?${qs}` : ''}`);
 }
 
+export async function fetchSupplierById(id: string): Promise<SupplierDetail> {
+  return apiFetch<SupplierDetail>(`/suppliers/${id}`);
+}
+
 export async function createSupplier(
   data: CreateSupplierPayload,
 ): Promise<Supplier> {
   return apiFetch<Supplier>('/suppliers', { method: 'POST', body: data });
+}
+
+export async function updateSupplier(
+  id: string,
+  data: Partial<CreateSupplierPayload>,
+): Promise<SupplierDetail> {
+  return apiFetch<SupplierDetail>(`/suppliers/${id}`, { method: 'PATCH', body: data });
 }
 
 export async function deleteSupplier(

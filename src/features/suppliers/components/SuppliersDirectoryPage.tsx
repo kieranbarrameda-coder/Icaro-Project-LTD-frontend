@@ -6,6 +6,7 @@ import {
   TRADES,
   SEED_SUPPLIERS,
   type Supplier,
+  type SupplierDetail,
   type Trade,
 } from '../data/suppliers';
 import {
@@ -16,6 +17,7 @@ import {
 } from '../api/supplierApi';
 import { SupplierCard, ArchivedSupplierCard } from './SupplierCard';
 import { AddSupplierModal } from './AddSupplierModal';
+import { SupplierDetailModal } from './SupplierDetailModal';
 import { ApiError } from '@/lib/api/authApi';
 
 interface SuppliersDirectoryPageProps {
@@ -33,6 +35,7 @@ export function SuppliersDirectoryPage({
   const [search, setSearch] = useState('');
   const [tradeFilter, setTradeFilter] = useState<'All trades' | Trade>('All trades');
   const [showNewModal, setShowNewModal] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { show } = useToast();
 
@@ -193,7 +196,7 @@ export function SuppliersDirectoryPage({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {sorted.map((supplier) => (
-                <SupplierCard key={supplier.id} supplier={supplier} onDelete={archive} />
+                <SupplierCard key={supplier.id} supplier={supplier} onDelete={archive} onSelect={setSelectedSupplierId} />
               ))}
             </div>
           )}
@@ -222,6 +225,36 @@ export function SuppliersDirectoryPage({
         open={showNewModal}
         onClose={() => setShowNewModal(false)}
         onCreate={createSupplier}
+      />
+
+      <SupplierDetailModal
+        open={selectedSupplierId !== null}
+        supplierId={selectedSupplierId}
+        onClose={() => setSelectedSupplierId(null)}
+        onUpdate={(updated) => {
+          setSuppliers((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+          setSelectedSupplierId(null);
+        }}
+        onDelete={(id) => {
+          setSuppliers((prev) =>
+            prev.map((x) =>
+              x.id === id ? { ...x, isDeleted: true, deletedAt: new Date().toISOString() } : x,
+            ),
+          );
+          setSelectedSupplierId(null);
+        }}
+        onRestore={(id) => {
+          setSuppliers((prev) =>
+            prev.map((x) =>
+              x.id === id ? { ...x, isDeleted: false, deletedAt: null } : x,
+            ),
+          );
+          setSelectedSupplierId(null);
+        }}
+        onPermanentDelete={(id) => {
+          setSuppliers((prev) => prev.filter((x) => x.id !== id));
+          setSelectedSupplierId(null);
+        }}
       />
 
       <ConfirmDialog

@@ -11,19 +11,24 @@ function projectLabel(projectIds: string[]): string {
 export function SupplierCard({
   supplier,
   onDelete,
+  onSelect,
 }: {
   supplier: Supplier;
   onDelete: (id: string) => void;
+  onSelect?: (id: string) => void;
 }) {
   const contactLine = [supplier.contact, supplier.phone, supplier.email]
     .filter(Boolean)
     .join(' · ');
 
   return (
-    <div className="relative rounded-xl p-5 flex flex-col group bg-bg-panel border border-border-subtle">
+    <div
+      className="relative rounded-xl p-5 flex flex-col group bg-bg-panel border border-border-subtle cursor-pointer"
+      onClick={() => onSelect?.(supplier.id)}
+    >
       <button
         type="button"
-        onClick={() => onDelete(supplier.id)}
+        onClick={(e) => { e.stopPropagation(); onDelete(supplier.id); }}
         className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 border border-border-subtle bg-bg-panel-hover text-text-secondary cursor-pointer hover:text-status-red z-10"
         aria-label="Archive supplier"
         title="Archive this supplier"
