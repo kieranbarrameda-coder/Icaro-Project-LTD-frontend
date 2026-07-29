@@ -181,7 +181,6 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | TenderStatus>('All');
-  const [showWonLost, setShowWonLost] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [editingTender, setEditingTender] = useState<Tender | null>(null);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -268,7 +267,6 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
     () =>
       tenders.filter((t) => {
         if (t.deleted) return false;
-        if (!showWonLost && (t.status === 'Won' || t.status === 'Lost')) return false;
         if (statusFilter !== 'All' && t.status !== statusFilter) return false;
         if (search) {
           const q = search.toLowerCase();
@@ -280,7 +278,7 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
         }
         return true;
       }),
-    [tenders, search, statusFilter, showWonLost],
+    [tenders, search, statusFilter],
   );
 
   const deletedTenders = tenders.filter((t) => t.deleted);
@@ -324,14 +322,6 @@ export function TenderRegisterPage({ activeRoute, onNavigate }: TenderRegisterPa
             </option>
           ))}
         </Select>
-        <label className="flex items-center gap-2 cursor-pointer text-[13px] text-text-secondary">
-          <input
-            type="checkbox"
-            checked={showWonLost}
-            onChange={(e) => setShowWonLost(e.target.checked)}
-          />
-          Show Won/Lost
-        </label>
       </div>
 
       {loading ? (

@@ -81,11 +81,12 @@ export function EditTenderModal({ open, tender, onClose, onUpdate, onDelete, onS
     const data = parsed.data;
     setSubmitting(true);
     try {
+      function toUTC(s: string) { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).toISOString(); }
       let updated = await updateTender(tender.id, {
         client: data.client,
         job: data.job,
-        received: new Date(data.received).toISOString(),
-        due: new Date(data.due).toISOString(),
+        received: toUTC(data.received),
+        due: toUTC(data.due),
       });
 
       if (data.status !== tender.status) {
