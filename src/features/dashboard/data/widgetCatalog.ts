@@ -104,7 +104,7 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     desc: 'Budget and risk summary per project.',
   },
   {
-    id: 'suppliers-snapshot',
+    id: 'supplier-trades',
     group: 'Projects',
     name: 'Recent suppliers',
     desc: 'Recently added suppliers on file.',
@@ -139,7 +139,7 @@ export const DEFAULT_WIDGETS: WidgetInstance[] = [
   makeWidget('sub-invoices', { colSpan: 4, rowSpan: 2 }),
   makeWidget('cash-position', { colSpan: 4, rowSpan: 1 }),
   makeWidget('tender-snapshot', { colSpan: 4, rowSpan: 1 }),
-  makeWidget('suppliers-snapshot', { colSpan: 4, rowSpan: 1 }),
+  makeWidget('supplier-trades', { colSpan: 4, rowSpan: 1 }),
   makeWidget('docusign', { colSpan: 4, rowSpan: 1 }),
   makeWidget('brain-dump', { colSpan: 4, rowSpan: 2 }),
   makeWidget('live-projects', { colSpan: 8, rowSpan: 2 }),

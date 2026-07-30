@@ -7,7 +7,6 @@ import {
   GRID_ROW_HEIGHT_PX,
   getSyncBadge,
   getWidgetCatalogEntry,
-  type WidgetCatalogEntry,
   type WidgetInstance,
   type WidgetSpan,
 } from '../data/widgetCatalog';
@@ -68,7 +67,7 @@ function WidgetBody({ id, onNavigate }: { id: string; onNavigate: (to: string) =
       return <BrainDumpWidget />;
       case 'tender-snapshot':
         return <TenderSnapshotWidget onNavigate={onNavigate} />;
-      case 'suppliers-snapshot':
+      case 'supplier-trades':
         return <SupplierSnapshotWidget onNavigate={onNavigate} />;
     case 'live-projects':
       return <LiveProjectsWidget />;
@@ -86,7 +85,6 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
-  const [catalogApi, setCatalogApi] = useState<WidgetCatalogEntry[] | null>(null);
   const [layoutLoading, setLayoutLoading] = useState(true);
   const { show } = useToast();
   const lastSavedRef = useRef('');
@@ -95,9 +93,21 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
   useEffect(() => {
     fetchDashboardLayout()
       .then((res) => {
-        setWidgets(res.widgets);
-        setCatalogApi(res.catalog);
-        lastSavedRef.current = JSON.stringify(res.widgets);
+        if (res.widgets) {
+          setWidgets(res.widgets);
+          lastSavedRef.current = JSON.stringify(res.widgets);
+        } else if (res.activeWidgetIds) {
+          const instances = res.activeWidgetIds.map((id) => ({
+            id,
+            colSpan: DEFAULT_COL_SPAN,
+            rowSpan: DEFAULT_ROW_SPAN,
+          }));
+          setWidgets(instances);
+          lastSavedRef.current = JSON.stringify(instances);
+        } else {
+          setWidgets(DEFAULT_WIDGETS);
+          lastSavedRef.current = JSON.stringify(DEFAULT_WIDGETS);
+        }
       })
       .catch(() => {
         setWidgets(DEFAULT_WIDGETS);
@@ -391,7 +401,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
         <div className="flex items-center justify-center text-center py-24 text-text-secondary">
           <span className="text-[13px]">Loading your dashboard…</span>
         </div>
-      ) : widgets.length === 0 ? (
+      ) : (widgets ?? []).length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-24 text-text-secondary">
           <h3 className="text-text-primary m-0 mb-1.5 text-base">Your dashboard is empty</h3>
           <p className="text-[13px] m-0 mb-4">
@@ -474,7 +484,6 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
         onClose={() => setDrawerOpen(false)}
         activeIds={activeIds}
         onAdd={addWidget}
-        catalog={catalogApi ?? undefined}
       />
     </AppShell>
   );
