@@ -20,7 +20,7 @@ export function AddWidgetDrawer({
   onAdd,
   catalog,
 }: AddWidgetDrawerProps) {
-  const entries = catalog ?? WIDGET_CATALOG;
+  const entries = (catalog ?? WIDGET_CATALOG).filter((w) => w.available !== false);
   const groups = useMemo(() => {
     const set = new Set(entries.map((w) => w.group));
     return Array.from(set);
