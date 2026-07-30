@@ -91,17 +91,27 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const ID_MIGRATION: Record<string, string> = {
+      'suppliers-snapshot': 'supplier-trades',
+    };
     fetchDashboardLayout()
       .then((res) => {
         if (res.widgets) {
-          setWidgets(res.widgets);
-          lastSavedRef.current = JSON.stringify(res.widgets);
-        } else if (res.activeWidgetIds) {
-          const instances = res.activeWidgetIds.map((id) => ({
-            id,
-            colSpan: DEFAULT_COL_SPAN,
-            rowSpan: DEFAULT_ROW_SPAN,
+          const migrated = res.widgets.map((w) => ({
+            ...w,
+            id: ID_MIGRATION[w.id] ?? w.id,
           }));
+          setWidgets(migrated);
+          lastSavedRef.current = JSON.stringify(migrated);
+        } else if (res.activeWidgetIds) {
+          const instances = res.activeWidgetIds.map((id) => {
+            const migratedId = ID_MIGRATION[id] ?? id;
+            return {
+              id: migratedId,
+              colSpan: DEFAULT_COL_SPAN,
+              rowSpan: DEFAULT_ROW_SPAN,
+            };
+          });
           setWidgets(instances);
           lastSavedRef.current = JSON.stringify(instances);
         } else {

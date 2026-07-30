@@ -15,7 +15,7 @@ export async function saveDashboardLayout(
 ): Promise<void> {
   await apiFetch('/dashboard/layout', {
     method: 'PATCH',
-    body: { activeWidgetIds: widgets.map((w) => w.id) },
+    body: { widgets },
   });
 }
 
