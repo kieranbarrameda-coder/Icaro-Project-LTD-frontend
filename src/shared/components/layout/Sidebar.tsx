@@ -94,14 +94,17 @@ export function Sidebar({
         <ul className="list-none p-0 m-0 mb-6 space-y-1">
           {NAV_ITEMS.map((item) => {
             const active = isNavActive(item.route);
+            const disabled = item.route === '/settings';
             return (
               <li
                 key={item.route}
-                onClick={() => onNavigate(item.route)}
-                className={`py-2 px-2 rounded-md cursor-pointer ${
-                  active
-                    ? 'text-gold font-semibold'
-                    : 'text-text-secondary font-normal hover:text-text-primary'
+                onClick={() => { if (!disabled) onNavigate(item.route); }}
+                className={`py-2 px-2 rounded-md ${
+                  disabled
+                    ? 'line-through cursor-not-allowed text-text-muted'
+                    : active
+                      ? 'text-gold font-semibold cursor-pointer'
+                      : 'text-text-secondary font-normal cursor-pointer hover:text-text-primary'
                 }`}
               >
                 {item.label}
@@ -114,13 +117,19 @@ export function Sidebar({
         <div className="space-y-3">
           {projectSections.map((section) => {
             const isCollapsed = !!collapsed[section.label];
+            const disabled = true;
             return (
               <div key={section.label}>
                 <button
                   type="button"
-                  onClick={() => toggleSection(section.label)}
+                  disabled={disabled}
+                  onClick={() => { if (!disabled) toggleSection(section.label); }}
                   aria-expanded={!isCollapsed}
-                  className="flex items-center justify-between w-full px-1 mb-1 text-[10px] tracking-[0.08em] uppercase text-text-muted cursor-pointer hover:text-text-secondary bg-transparent"
+                  className={`flex items-center justify-between w-full px-1 mb-1 text-[10px] tracking-[0.08em] uppercase bg-transparent ${
+                    disabled
+                      ? 'line-through cursor-not-allowed text-text-muted'
+                      : 'text-text-muted cursor-pointer hover:text-text-secondary'
+                  }`}
                 >
                   <span>{section.label}</span>
                   <ChevronDown
@@ -137,11 +146,13 @@ export function Sidebar({
                       return (
                         <div
                           key={project.id}
-                          onClick={() => onNavigate(projectRoute(project.id))}
-                          className={`py-1.5 rounded-md cursor-pointer truncate ${
-                            active
-                              ? 'text-gold font-semibold border-l-2 border-gold pl-2'
-                              : 'text-text-secondary font-normal border-l-2 border-transparent pl-1.5 hover:text-text-primary'
+                          onClick={() => { if (!disabled) onNavigate(projectRoute(project.id)); }}
+                          className={`py-1.5 rounded-md truncate ${
+                            disabled
+                              ? 'line-through cursor-not-allowed text-text-muted'
+                              : active
+                                ? 'text-gold font-semibold border-l-2 border-gold pl-2 cursor-pointer'
+                                : 'text-text-secondary font-normal border-l-2 border-transparent pl-1.5 cursor-pointer hover:text-text-primary'
                           }`}
                         >
                           {project.name}
