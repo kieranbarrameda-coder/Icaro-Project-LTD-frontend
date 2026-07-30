@@ -68,6 +68,7 @@ export function AddWidgetDrawer({
               <div className="eyebrow text-text-muted mb-2">{group}</div>
               {items.map((w, i) => {
                 const isActive = activeIds.includes(w.id);
+                if (isActive) return null;
                 const locked = catalog ? !w.available : !!w.requires;
                 return (
                   <div
