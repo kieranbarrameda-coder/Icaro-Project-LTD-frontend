@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   groupProjectsByStatus,
   getActiveProjectId,
@@ -40,21 +39,6 @@ export function Sidebar({
     { label: 'Completed', items: completed },
     { label: 'Archive', items: archive },
   ].filter((section) => section.items.length > 0);
-
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-
-  function toggleSection(label: string) {
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
-  }
-
-  useEffect(() => {
-    if (!activeProjectId) return;
-    projectSections.forEach((section) => {
-      if (section.items.some((p) => p.id === activeProjectId) && collapsed[section.label]) {
-        setCollapsed((prev) => ({ ...prev, [section.label]: false }));
-      }
-    });
-  }, [activeProjectId, collapsed, projectSections]);
 
   function isNavActive(route: string): boolean {
     if (route === '/') return activeRoute === '/' || activeRoute === '';
@@ -115,55 +99,23 @@ export function Sidebar({
 
         <div className="eyebrow text-text-muted mb-2">Projects</div>
         <div className="space-y-3">
-          {projectSections.map((section) => {
-            const isCollapsed = !!collapsed[section.label];
-            const disabled = true;
-            return (
-              <div key={section.label}>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => { if (!disabled) toggleSection(section.label); }}
-                  aria-expanded={!isCollapsed}
-                  className={`flex items-center justify-between w-full px-1 mb-1 text-[10px] tracking-[0.08em] uppercase bg-transparent ${
-                    disabled
-                      ? 'line-through cursor-not-allowed text-text-muted'
-                      : 'text-text-muted cursor-pointer hover:text-text-secondary'
-                  }`}
-                >
-                  <span>{section.label}</span>
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform duration-150 ${
-                      isCollapsed ? '-rotate-90' : ''
-                    }`}
-                  />
-                </button>
-                {!isCollapsed && (
-                  <div>
-                    {section.items.map((project) => {
-                      const active = activeProjectId === project.id;
-                      return (
-                        <div
-                          key={project.id}
-                          onClick={() => { if (!disabled) onNavigate(projectRoute(project.id)); }}
-                          className={`py-1.5 rounded-md truncate ${
-                            disabled
-                              ? 'line-through cursor-not-allowed text-text-muted'
-                              : active
-                                ? 'text-gold font-semibold border-l-2 border-gold pl-2 cursor-pointer'
-                                : 'text-text-secondary font-normal border-l-2 border-transparent pl-1.5 cursor-pointer hover:text-text-primary'
-                          }`}
-                        >
-                          {project.name}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+          {projectSections.map((section) => (
+            <div key={section.label}>
+              <div className="flex items-center justify-between w-full px-1 mb-1 text-[10px] tracking-[0.08em] uppercase line-through text-text-muted">
+                <span>{section.label}</span>
               </div>
-            );
-          })}
+              <div>
+                {section.items.map((project) => (
+                  <div
+                    key={project.id}
+                    className="py-1.5 rounded-md truncate line-through cursor-not-allowed text-text-muted pl-1.5"
+                  >
+                    {project.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </aside>
     </>
