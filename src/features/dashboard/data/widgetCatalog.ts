@@ -30,11 +30,15 @@ export type WidgetSpan = {
 
 export interface WidgetInstance extends WidgetSpan {
   id: string;
+  x?: number;
+  y?: number;
 }
 
 function makeWidget(id: string, span: Partial<WidgetSpan> = {}): WidgetInstance {
   return {
     id,
+    x: 0,
+    y: 0,
     colSpan: span.colSpan ?? DEFAULT_COL_SPAN,
     rowSpan: span.rowSpan ?? DEFAULT_ROW_SPAN,
   };

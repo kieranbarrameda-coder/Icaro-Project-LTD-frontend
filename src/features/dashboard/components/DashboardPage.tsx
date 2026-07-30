@@ -108,6 +108,8 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
             const migratedId = ID_MIGRATION[id] ?? id;
             return {
               id: migratedId,
+              x: 0,
+              y: 0,
               colSpan: DEFAULT_COL_SPAN,
               rowSpan: DEFAULT_ROW_SPAN,
             };
@@ -179,7 +181,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
     if (activeIds.includes(id)) return;
     setWidgets((prev) => [
       ...prev,
-      { id, colSpan: DEFAULT_COL_SPAN, rowSpan: DEFAULT_ROW_SPAN },
+      { id, x: 0, y: 0, colSpan: DEFAULT_COL_SPAN, rowSpan: DEFAULT_ROW_SPAN },
     ]);
   }
 
