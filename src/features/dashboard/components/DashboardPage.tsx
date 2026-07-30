@@ -165,6 +165,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
   }
 
   function addWidget(id: string) {
+    console.log("Adding widget:", id);
     if (activeIds.includes(id)) return;
     setWidgets((prev) => [
       ...prev,
