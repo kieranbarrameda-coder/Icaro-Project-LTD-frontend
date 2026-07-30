@@ -29,9 +29,9 @@ export function AddWidgetDrawer({
     () =>
       groups.map((group) => ({
         group,
-        items: entries.filter((w) => w.group === group),
+        items: entries.filter((w) => w.group === group && !activeIds.includes(w.id)),
       })),
-    [entries, groups],
+    [entries, groups, activeIds],
   );
 
   return (
@@ -63,44 +63,45 @@ export function AddWidgetDrawer({
           </button>
         </div>
         <div className="p-5 overflow-y-auto flex-1 scroll-themed">
-          {grouped.map(({ group, items }) => (
-            <div key={group} className="mb-5">
-              <div className="eyebrow text-text-muted mb-2">{group}</div>
-              {items.map((w, i) => {
-                const isActive = activeIds.includes(w.id);
-                if (isActive) return null;
-                const locked = catalog ? !w.available : !!w.requires;
-                return (
-                  <div
-                    key={w.id}
-                    className="flex items-start justify-between gap-3 py-3"
-                    style={{ borderTop: i ? '1px solid rgba(255,255,255,0.08)' : 'none' }}
-                  >
-                    <div>
-                      <div className="text-[13.5px] font-semibold">{w.name}</div>
-                      <div className="text-xs text-text-secondary mt-0.5">{w.desc}</div>
-                      {locked && w.requires && (
-                        <div className="flex items-center gap-1 mt-1 text-[11.5px] text-status-orange">
-                          Requires {w.requires}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={locked || isActive}
-                      onClick={() => onAdd(w.id)}
-                      className="rounded-md px-3 py-1.5 flex-shrink-0 text-xs border border-border-strong bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-                      style={{
-                        color: locked || isActive ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-                      }}
+          {grouped.map(({ group, items }) => {
+            if (items.length === 0) return null;
+            return (
+              <div key={group} className="mb-5">
+                <div className="eyebrow text-text-muted mb-2">{group}</div>
+                {items.map((w, i) => {
+                  const locked = catalog ? !w.available : !!w.requires;
+                  return (
+                    <div
+                      key={w.id}
+                      className="flex items-start justify-between gap-3 py-3"
+                      style={{ borderTop: i ? '1px solid rgba(255,255,255,0.08)' : 'none' }}
                     >
-                      {locked ? 'Locked' : isActive ? 'Added' : 'Add'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                      <div>
+                        <div className="text-[13.5px] font-semibold">{w.name}</div>
+                        <div className="text-xs text-text-secondary mt-0.5">{w.desc}</div>
+                        {locked && w.requires && (
+                          <div className="flex items-center gap-1 mt-1 text-[11.5px] text-status-orange">
+                            Requires {w.requires}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => onAdd(w.id)}
+                        className="rounded-md px-3 py-1.5 flex-shrink-0 text-xs border border-border-strong bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        style={{
+                          color: locked ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
+                        }}
+                      >
+                        {locked ? 'Locked' : 'Add'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       </div>
     </>
