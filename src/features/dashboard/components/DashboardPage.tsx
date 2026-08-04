@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GripVertical, Plus, X } from 'lucide-react';
 import {
+  ALLOWED_WIDGETS,
   DEFAULT_COL_SPAN,
   DEFAULT_ROW_SPAN,
   DEFAULT_WIDGETS,
@@ -96,30 +97,32 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
     };
     fetchDashboardLayout()
       .then((res) => {
+        let loaded: WidgetInstance[];
         if (res.widgets) {
           const migrated = res.widgets.map((w) => ({
             ...w,
             id: ID_MIGRATION[w.id] ?? w.id,
           }));
-          setWidgets(migrated);
-          lastSavedRef.current = JSON.stringify(migrated);
+          loaded = migrated.filter((w) => ALLOWED_WIDGETS.includes(w.id));
         } else if (res.activeWidgetIds) {
-          const instances = res.activeWidgetIds.map((id) => {
-            const migratedId = ID_MIGRATION[id] ?? id;
-            return {
-              id: migratedId,
-              x: 0,
-              y: 0,
-              colSpan: DEFAULT_COL_SPAN,
-              rowSpan: DEFAULT_ROW_SPAN,
-            };
-          });
-          setWidgets(instances);
-          lastSavedRef.current = JSON.stringify(instances);
+          loaded = res.activeWidgetIds
+            .map((id) => {
+              const migratedId = ID_MIGRATION[id] ?? id;
+              return {
+                id: migratedId,
+                x: 0,
+                y: 0,
+                colSpan: DEFAULT_COL_SPAN,
+                rowSpan: DEFAULT_ROW_SPAN,
+              };
+            })
+            .filter((w) => ALLOWED_WIDGETS.includes(w.id));
         } else {
-          setWidgets(DEFAULT_WIDGETS);
-          lastSavedRef.current = JSON.stringify(DEFAULT_WIDGETS);
+          loaded = DEFAULT_WIDGETS;
         }
+        if (loaded.length === 0) loaded = DEFAULT_WIDGETS;
+        setWidgets(loaded);
+        lastSavedRef.current = JSON.stringify(loaded);
       })
       .catch(() => {
         setWidgets(DEFAULT_WIDGETS);
@@ -178,6 +181,7 @@ export function DashboardPage({ activeRoute, onNavigate }: DashboardPageProps) {
 
   function addWidget(id: string) {
     console.log("Adding widget:", id);
+    if (!ALLOWED_WIDGETS.includes(id)) return;
     if (activeIds.includes(id)) return;
     setWidgets((prev) => [
       ...prev,

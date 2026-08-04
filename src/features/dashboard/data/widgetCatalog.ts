@@ -44,6 +44,8 @@ function makeWidget(id: string, span: Partial<WidgetSpan> = {}): WidgetInstance 
   };
 }
 
+export const ALLOWED_WIDGETS = ['tender-snapshot', 'supplier-trades'];
+
 export const WIDGET_GROUPS: WidgetGroup[] = [
   'Financials',
   'Actions',
@@ -58,42 +60,49 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     group: 'Financials',
     name: 'Cash at risk',
     desc: 'Total overdue client cash by project.',
+    requires: 'Upgrade required',
   },
   {
     id: 'cash-position',
     group: 'Financials',
     name: 'Cash position',
     desc: 'Net position — owed to Icaro vs owed to subbies.',
+    requires: 'Upgrade required',
   },
   {
     id: 'client-invoices',
     group: 'Financials',
     name: 'Outstanding client invoices',
     desc: 'Synced from Xero.',
+    requires: 'Upgrade required',
   },
   {
     id: 'sub-invoices',
     group: 'Financials',
     name: 'Outstanding sub invoices',
     desc: 'Synced from Xero, after CIS.',
+    requires: 'Upgrade required',
   },
   {
     id: 'ceo-actions',
     group: 'Actions',
     name: 'CEO action list',
     desc: 'Open items pulled from Brain Dump.',
+    requires: 'Upgrade required',
   },
   {
     id: 'waiting-client',
     group: 'Actions',
     name: 'Waiting on client',
     desc: 'Items stuck on a client decision.',
+    requires: 'Upgrade required',
   },
   {
     id: 'brain-dump',
     group: 'Actions',
     name: 'Brain dump',
     desc: 'Quick capture for anything unresolved.',
+    requires: 'Upgrade required',
   },
   {
     id: 'tender-snapshot',
@@ -106,6 +115,7 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     group: 'Projects',
     name: 'Live projects',
     desc: 'Budget and risk summary per project.',
+    requires: 'Upgrade required',
   },
   {
     id: 'supplier-trades',
@@ -118,35 +128,27 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     group: 'Integrations',
     name: 'DocuSign — awaiting signature',
     desc: 'Envelopes sent, not yet signed.',
+    requires: 'Upgrade required',
   },
   {
     id: 'dropbox-revisions',
     group: 'Integrations',
     name: 'Dropbox — recent revisions',
     desc: 'New drawings synced from Dropbox.',
-    requires: 'Dropbox',
+    requires: 'Upgrade required',
   },
   {
     id: 'gmail-tenders',
     group: 'Integrations',
     name: 'Gmail — draft tenders',
     desc: 'Draft tenders created from parsed emails.',
-    requires: 'Gmail parser (Phase 3)',
+    requires: 'Upgrade required',
   },
 ];
 
 export const DEFAULT_WIDGETS: WidgetInstance[] = [
-  makeWidget('cash-at-risk', { colSpan: 4, rowSpan: 2 }),
-  makeWidget('ceo-actions', { colSpan: 4, rowSpan: 2 }),
-  makeWidget('waiting-client', { colSpan: 4, rowSpan: 1 }),
-  makeWidget('client-invoices', { colSpan: 4, rowSpan: 2 }),
-  makeWidget('sub-invoices', { colSpan: 4, rowSpan: 2 }),
-  makeWidget('cash-position', { colSpan: 4, rowSpan: 1 }),
   makeWidget('tender-snapshot', { colSpan: 4, rowSpan: 1 }),
   makeWidget('supplier-trades', { colSpan: 4, rowSpan: 1 }),
-  makeWidget('docusign', { colSpan: 4, rowSpan: 1 }),
-  makeWidget('brain-dump', { colSpan: 4, rowSpan: 2 }),
-  makeWidget('live-projects', { colSpan: 8, rowSpan: 2 }),
 ];
 
 export type WidgetBody = ReactNode;

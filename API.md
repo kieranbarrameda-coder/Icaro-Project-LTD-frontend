@@ -1,7 +1,7 @@
 # Icaro Projects API
 
-**Base URL:** `http://localhost:3001`
-**Swagger UI:** `http://localhost:3001/docs`
+**Base URL:** `http://localhost:3000`
+**Swagger UI:** `http://localhost:3000/docs`
 
 ---
 
@@ -28,7 +28,7 @@ npm run start:dev
 docker compose up --build
 ```
 
-Postgres 16 + API (port 3001) + n8n (port 5678) all spin up.
+Postgres 16 + API (port 3000) + n8n (port 5678) all spin up.
 
 ---
 
@@ -130,13 +130,15 @@ Create a new tender.
   "due": "2026-08-15T00:00:00.000Z",
   "status": "Pricing",
   "contractSum": 50000,
-  "email": "client@acme.com"
+  "email": "client@acme.com",
+  "sourceEmailId": "abc123"
 }
 ```
 
 - `status`: optional, defaults to `Pricing`. Enums: `Pricing`, `Tendering`, `Issued`, `Won`, `Lost`, `Withdrawn`
 - `contractSum`: optional, >= 0
 - `email`: optional string — client contact email
+- `sourceEmailId`: optional string — Gmail message ID for deduplication. Returns **409 Conflict** if already exists.
 - `createdById`: auto-set from authenticated user
 
 **Response (201):** `TenderResponseDto`
@@ -188,19 +190,36 @@ Get a single tender by ID.
 
 ---
 
+#### `GET /tenders/check-source-email`
+Check if a `sourceEmailId` is already taken.
+
+| Query          | Type   | Description                    |
+|----------------|--------|--------------------------------|
+| `sourceEmailId` | string | The Gmail message ID to check  |
+
+**Response (200):**
+```json
+{ "exists": true }
+```
+
+**Response (409):** never — a 409 means the ID is taken, which is just `{ exists: true }`. This endpoint only returns 200.
+
+---
+
 #### `PATCH /tenders/:id`
-Update client, job, or due date.
+Update tender fields.
 
 ```json
 {
   "client": "New Corp",
   "job": "Updated job",
+  "received": "2026-07-25T00:00:00.000Z",
   "due": "2026-09-01T00:00:00.000Z",
   "email": "new@corp.com"
 }
 ```
 
-All fields optional (`email` included).
+All fields optional.
 
 **Response (200):** `TenderResponseDto`
 
@@ -303,6 +322,186 @@ Sets `lastReminderSentAt` to now.
 
 ---
 
+## Communication & Email
+
+Editable quotation email templates (stored in the `EmailTemplate` DB table, falling back to server defaults when not customised) and a `mailto:` URL builder that resolves those templates.
+
+All endpoints require `Authorization: Bearer <jwt>`. Editing templates is **admin-only** (`@Roles('admin')`); reading and building `mailto:` links is available to all authenticated users (no module permission gate).
+
+### Template keys
+
+| Key | Name | Purpose |
+|---|---|---|
+| `quotation_to_estimator` | Quotation request — estimator | Email asking an estimator to prepare a quotation |
+| `quotation_to_client` | Quotation — client | Email sending the quotation to the client |
+
+### Placeholders
+
+Templates support `{placeholder}` tokens that are substituted when building a `mailto:` link. Unknown placeholders are replaced with an empty string.
+
+| Placeholder | Meaning |
+|---|---|
+| `{client}` | Client name |
+| `{job}` | Job / works description |
+| `{due}` | Due date |
+| `{quoteAmount}` | Quotation amount (client template) |
+| `{estimatorName}` | Estimator's name (estimator template) |
+| `{companyName}` | Sender's company name |
+
+---
+
+#### `POST /communication/emails/mailto`
+
+Build an RFC 6068 `mailto:` URL. If `templateKey` is provided, `subject`/`body` are taken from that template (DB row if customised, else the server default) and any placeholder values in `data` are substituted. If `subject`/`body` are provided directly, they are used instead (placeholders are still substituted). Query parameters are percent-encoded; the `to` address is left raw.
+
+```json
+{
+  "to": "maria@icaroprojects.com",
+  "templateKey": "quotation_to_estimator",
+  "data": {
+    "estimatorName": "Maria",
+    "client": "Acme Corp",
+    "job": "Foundation pour",
+    "due": "2026-08-15",
+    "companyName": "Icaro Projects"
+  }
+}
+```
+
+**Validation:**
+
+| Field | Rules |
+|---|---|
+| `to` | Required. `@IsEmail()`. |
+| `cc` | Optional. Array of emails. |
+| `bcc` | Optional. Array of emails. |
+| `templateKey` | Optional. Must be one of the template keys. |
+| `data` | Optional. Object mapping placeholder name → string value. |
+| `subject` | Optional. Max 200 chars. Ignored when `templateKey` resolves a template. |
+| `body` | Optional. Max 10000 chars. Ignored when `templateKey` resolves a template. |
+
+**Response (200):**
+```json
+{
+  "mailto": "mailto:maria@icaroprojects.com?subject=Estimate%20needed%3A%20Foundation%20pour%20%E2%80%94%20Acme%20Corp&body=Hi%20Maria%2C%0A...",
+  "recipient": "maria@icaroprojects.com",
+  "cc": [],
+  "bcc": [],
+  "subject": "Estimate needed: Foundation pour — Acme Corp",
+  "body": "Hi Maria,\n\nPlease prepare a quotation for the following tender:..."
+}
+```
+
+---
+
+#### `GET /communication/email-templates`
+
+List both quotation templates. Returns the customised subject/body from the DB when a row exists, otherwise the server default (`isDefault: true`).
+
+**Response (200):**
+```json
+{
+  "templates": [
+    {
+      "id": "clx...",
+      "key": "quotation_to_estimator",
+      "name": "Quotation request — estimator",
+      "subject": "Estimate needed: {job} — {client}",
+      "body": "Hi {estimatorName},...",
+      "isDefault": false,
+      "updatedAt": "2026-08-04T10:00:00Z"
+    },
+    {
+      "id": "",
+      "key": "quotation_to_client",
+      "name": "Quotation — client",
+      "subject": "Quotation for {job} — {client}",
+      "body": "Dear {client},...",
+      "isDefault": true,
+      "updatedAt": null
+    }
+  ]
+}
+```
+
+---
+
+#### `GET /communication/email-templates/:key`
+
+Get a single template by key (`quotation_to_estimator` or `quotation_to_client`).
+
+- **404** if the key is unknown.
+
+**Response (200):** single `EmailTemplate` object (same shape as the list entries above).
+
+---
+
+#### `PATCH /communication/email-templates/:key`  (Admin only — `@Roles('admin')`)
+
+Create or update the customised subject/body for a template. All fields optional. Omitting a field keeps the current (or default) value.
+
+```json
+{
+  "subject": "Estimate needed urgently: {job} — {client}",
+  "body": "Hi {estimatorName},\n\nPlease quote the {job} works for {client}."
+}
+```
+
+**Validation:**
+
+| Field | Rules |
+|---|---|
+| `subject` | Optional. `@IsString()`, max 200 chars. |
+| `body` | Optional. `@IsString()`, max 10000 chars. |
+
+**Response (200):** the updated template.
+
+---
+
+#### `POST /communication/email-templates/:key/reset`  (Admin only — `@Roles('admin')`)
+
+Delete the customised row for a template. Subsequent reads fall back to the server default. If no custom row exists, the call is a no-op on the DB (no audit entry) but the response still reports `reset: true`.
+
+- **404** if the key is unknown.
+
+**Response (200):**
+```json
+{
+  "id": "",
+  "key": "quotation_to_estimator",
+  "name": "Quotation request — estimator",
+  "subject": "Estimate needed: {job} — {client}",
+  "body": "Hi {estimatorName},...",
+  "isDefault": true,
+  "updatedAt": null,
+  "reset": true
+}
+```
+
+When a row is deleted, an audit log entry is written with `entityType: "EmailTemplate"` and `field: "reset"`.
+
+---
+
+**RBAC matrix (communication):**
+
+| Endpoint | Admin | Estimator | PM |
+|---|---|---|---|
+| `POST /communication/emails/mailto` | ✅ | ✅ | ✅ |
+| `GET /communication/email-templates` | ✅ | ✅ | ✅ |
+| `GET /communication/email-templates/:key` | ✅ | ✅ | ✅ |
+| `PATCH /communication/email-templates/:key` | ✅ | ❌ | ❌ |
+| `POST /communication/email-templates/:key/reset` | ✅ | ❌ | ❌ |
+
+**Error shapes:**
+
+| Status | Trigger | Body |
+|---|---|---|
+| 400 | Invalid `to`/unknown `templateKey`/bad `data` | class-validator default array (whitelist + forbidNonWhitelisted enforced by global `ValidationPipe`) |
+| 403 | Non-admin calls a PATCH/reset route | `{ statusCode: 403, message: "Insufficient role. Admin access required.", error: "Forbidden" }` |
+| 404 | Unknown template key | Nest default 404 body |
+
+---
+
 ## Response Shape
 
 ### `TenderResponseDto`
@@ -313,6 +512,7 @@ Sets `lastReminderSentAt` to now.
   "client": "string",
   "job": "string",
   "email": "string",
+  "sourceEmailId": "abc123",
   "received": "ISO date string",
   "due": "ISO date string",
   "status": "Pricing | Tendering | Issued | Won | Lost | Withdrawn",
@@ -326,6 +526,7 @@ Sets `lastReminderSentAt` to now.
 ```
 
 - `email` is mapped from DB — empty string if `null`
+- `sourceEmailId` is the Gmail message ID — omitted (`undefined`) when not set
 - `contractSum` is `undefined` (omitted) when the requesting user lacks the `Tenders` permission
 - `deleted` is the mapping for `isDeleted`
 
@@ -389,6 +590,21 @@ For 403:
 | newValue    | String?          |
 | changedById | String           |
 | changedAt   | DateTime         |
+
+### EmailTemplate
+| Field       | Type             |
+|-------------|------------------|
+| id          | String (PK, cuid) |
+| tenantId    | String           |
+| key         | String (`quotation_to_estimator` \| `quotation_to_client`) |
+| name        | String           |
+| subject     | String           |
+| body        | String           |
+| updatedById | String?          |
+| createdAt   | DateTime         |
+| updatedAt   | DateTime         |
+
+Unique: `[tenantId, key]` · Index: `[tenantId]` · Table: `email_templates`.
 
 ---
 
@@ -753,7 +969,7 @@ Check connection status.
 
 ### Dashboard Layout
 
-Persists each user's widget layout (order, colSpan, rowSpan). Base path: `/dashboard/layout`.
+Persists each user's widget layout (x, y grid position, colSpan, rowSpan). Base path: `/dashboard/layout`.
 
 All endpoints require `Authorization: Bearer <jwt>`. All authenticated users can read/write their own layout (no module permission gate). The reset endpoint is **admin-only**.
 
@@ -772,8 +988,8 @@ Returns the current user's widget layout and the full widget catalog. If no save
 ```json
 {
   "widgets": [
-    { "id": "cash-at-risk", "colSpan": 4, "rowSpan": 2 },
-    { "id": "ceo-actions",  "colSpan": 4, "rowSpan": 2 }
+    { "id": "cash-at-risk", "x": 0, "y": 0, "colSpan": 4, "rowSpan": 2 },
+    { "id": "ceo-actions",  "x": 4, "y": 0, "colSpan": 4, "rowSpan": 2 }
   ],
   "catalog": [
     {
@@ -805,7 +1021,7 @@ Returns the current user's widget layout and the full widget catalog. If no save
 | `desc` | `string` | Short description of what the widget shows |
 | `requires` | `string?` | Integration required (e.g. `"Dropbox"`). Absent if no integration needed |
 | `available` | `boolean` | Whether the required integration is connected (`true` if no `requires` or integration is connected) |
-| `active` | `boolean` | Whether the widget is currently in the user's layout |
+| `active` | `boolean` | Whether the widget is toggled active in the user's catalog config (persisted in `DashboardCatalogConfig`) |
 
 ---
 
@@ -817,8 +1033,8 @@ Upsert the current user's layout. Rate-limited to **30 requests per minute** per
 ```json
 {
   "widgets": [
-    { "id": "cash-at-risk", "colSpan": 6, "rowSpan": 2 },
-    { "id": "ceo-actions",  "colSpan": 6, "rowSpan": 1 }
+    { "id": "cash-at-risk", "x": 0, "y": 0, "colSpan": 6, "rowSpan": 2 },
+    { "id": "ceo-actions",  "x": 6, "y": 0, "colSpan": 6, "rowSpan": 1 }
   ]
 }
 ```
@@ -829,6 +1045,8 @@ Upsert the current user's layout. Rate-limited to **30 requests per minute** per
 |---|---|
 | `widgets` | Required. `@IsArray()`, `@ArrayMaxSize(20)`, `@ValidateNested({ each: true })`. |
 | `widgets[].id` | Required. `@IsString()`, `@IsIn(WIDGET_CATALOG_IDS)` (see list below). |
+| `widgets[].x` | Required. `@IsInt()`, `@Min(0)`. Grid column position. |
+| `widgets[].y` | Required. `@IsInt()`, `@Min(0)`. Grid row position. |
 | `widgets[].colSpan` | Required. `@IsInt()`, `@Min(2)`, `@Max(12)`. |
 | `widgets[].rowSpan` | Required. `@IsInt()`, `@Min(1)`, `@Max(6)`. |
 | Duplicate IDs | Rejected by a custom `@ValidatorConstraint` (`NoDuplicateWidgetIds`). The 400 body is `{ message: "Duplicate widget IDs are not allowed", duplicates: ["cash-at-risk"] }`. |
@@ -839,7 +1057,8 @@ Known widget IDs (from `src/modules/dashboard/constants/widget-catalog.ts`):
 cash-at-risk, cash-position, client-invoices, sub-invoices,
 ceo-actions, waiting-client, brain-dump,
 tender-snapshot, live-projects,
-docusign, dropbox-revisions, gmail-tenders
+docusign, dropbox-revisions, gmail-tenders,
+supplier-trades
 ```
 
 **Response `200 OK`:** the saved layout with widget catalog (same shape as `GET`).
@@ -861,7 +1080,7 @@ Deletes the current user's saved layout row. Subsequent `GET` calls return the s
 ```json
 {
   "widgets": [
-    { "id": "cash-at-risk", "colSpan": 4, "rowSpan": 2 }
+    { "id": "cash-at-risk", "x": 0, "y": 0, "colSpan": 4, "rowSpan": 2 }
   ],
   "catalog": [
     { "id": "cash-at-risk", "group": "Financials", "name": "Cash at risk", "desc": "...", "available": true, "active": true }
@@ -892,6 +1111,103 @@ When a row is deleted, an audit log is written with `field: "reset"`, `oldValue:
 | 403 | Non-admin calls `/reset` | `{ statusCode: 403, message: "Insufficient role. Admin access required.", error: "Forbidden" }` |
 | 429 | >30 PATCH calls/min | throttler default 429 body |
 
+---
+
+### Dashboard Catalog
+
+Persists which widgets are toggled active in the catalog per user. Active state is independent of layout placement — a widget can be active in the catalog without being placed on the dashboard. Base path: `/dashboard/catalog`.
+
+All endpoints require `Authorization: Bearer <jwt>`. All authenticated users can read/update their own catalog config. The reset endpoint is available to all roles (unlike layout reset which is admin-only).
+
+---
+
+#### `GET /dashboard/catalog`
+
+Returns the full widget catalog with `available` (integration check) and `active` (from user's persisted config). When no config row exists, all available widgets default to `active: true`.
+
+**Response `200 OK`:**
+```json
+{
+  "catalog": [
+    {
+      "id": "cash-at-risk",
+      "group": "Financials",
+      "name": "Cash at risk",
+      "desc": "Total overdue client cash by project.",
+      "available": true,
+      "active": true
+    },
+    {
+      "id": "dropbox-revisions",
+      "group": "Integrations",
+      "name": "Dropbox — recent revisions",
+      "desc": "New drawings synced from Dropbox.",
+      "requires": "Dropbox",
+      "available": false,
+      "active": false
+    }
+  ]
+}
+```
+
+Catalog entry fields are identical to those documented in `GET /dashboard/layout`.
+
+---
+
+#### `PATCH /dashboard/catalog`
+
+Upsert the user's active widget ID list. Rate-limited to **30 requests per minute** per user.
+
+**Request body:**
+```json
+{
+  "activeWidgetIds": ["cash-at-risk", "ceo-actions", "brain-dump"]
+}
+```
+
+**Validation (`class-validator`):**
+
+| Field | Rules |
+|---|---|
+| `activeWidgetIds` | Required. `@IsArray()`, `@ArrayMaxSize(20)`, `@IsString({ each: true })`, `@IsIn(WIDGET_CATALOG_IDS, { each: true })`. |
+| Duplicate IDs | Rejected by a custom `@ValidatorConstraint` (`NoDuplicateStrings`). The 400 body is `{ message: "Duplicate values are not allowed", duplicates: ["cash-at-risk"] }`. |
+
+Known widget IDs (from `src/modules/dashboard/constants/widget-catalog.ts`):
+```
+cash-at-risk, cash-position, client-invoices, sub-invoices,
+ceo-actions, waiting-client, brain-dump,
+tender-snapshot, live-projects,
+docusign, dropbox-revisions, gmail-tenders,
+supplier-trades
+```
+
+**Response `200 OK`:** the catalog with updated active state (same shape as `GET`).
+
+---
+
+#### `POST /dashboard/catalog/reset`
+
+Deletes the user's `DashboardCatalogConfig` row. Subsequent `GET` calls return all available widgets as `active: true`. Available to all authenticated roles.
+
+**Response `200 OK`:**
+```json
+{
+  "catalog": [
+    { "id": "cash-at-risk", "group": "Financials", "name": "Cash at risk", "desc": "...", "available": true, "active": true }
+  ]
+}
+```
+
+---
+
+**RBAC matrix (dashboard catalog):**
+
+| Endpoint | Admin | Estimator | PM |
+|---|---|---|---|
+| `GET /dashboard/catalog` | ✅ | ✅ | ✅ |
+| `PATCH /dashboard/catalog` | ✅ | ✅ | ✅ |
+| `POST /dashboard/catalog/reset` | ✅ | ✅ | ✅ |
+
 ### DashboardLayout (Prisma)
 | Field | Type |
 |---|---|
@@ -903,6 +1219,18 @@ When a row is deleted, an audit log is written with `field: "reset"`, `oldValue:
 | updatedAt | DateTime (`@updatedAt`) |
 
 Unique: `[tenantId, userId]` · Index: `[tenantId]` · Table: `dashboard_layouts`.
+
+### DashboardCatalogConfig (Prisma)
+| Field | Type |
+|---|---|
+| id | String (PK, cuid) |
+| tenantId | String |
+| userId | String |
+| activeWidgetIds | Json (`string[]`) |
+| createdAt | DateTime (`@default(now())`) |
+| updatedAt | DateTime (`@updatedAt`) |
+
+Unique: `[tenantId, userId]` · Index: `[tenantId]` · Table: `dashboard_catalog_configs`.
 
 ---
 
