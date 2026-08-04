@@ -38,6 +38,10 @@ export async function fetchTenders(filters?: TenderListFilters): Promise<Tender[
   return apiFetch<Tender[]>(`/tenders${qs ? `?${qs}` : ''}`);
 }
 
+export async function fetchTender(id: string): Promise<Tender> {
+  return apiFetch<Tender>(`/tenders/${id}`);
+}
+
 export async function createTender(data: CreateTenderPayload): Promise<Tender> {
   return apiFetch<Tender>('/tenders', { method: 'POST', body: data });
 }

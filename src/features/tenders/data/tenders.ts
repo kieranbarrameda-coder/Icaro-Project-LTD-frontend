@@ -9,6 +9,12 @@ export const TENDER_STATUSES = [
 
 export type TenderStatus = (typeof TENDER_STATUSES)[number];
 
+export interface AssignedEstimator {
+  id: string;
+  email: string;
+  fullName: string | null;
+}
+
 export interface Tender {
   id: string;
   client: string;
@@ -23,6 +29,7 @@ export interface Tender {
   deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  assignedEstimator?: AssignedEstimator | null;
 }
 
 export const STATUS_TONE: Record<TenderStatus, 'red' | 'orange' | 'green' | 'blue'> = {
