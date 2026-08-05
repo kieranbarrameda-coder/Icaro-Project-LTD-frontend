@@ -25,3 +25,23 @@ export function substitutePlaceholders(
 ): string {
   return text.replace(/\{(\w+)\}/g, (_, key) => data[key] ?? '');
 }
+
+export interface SendEmailResponse {
+  sent: boolean;
+  messageId: string | null;
+  recipient: string;
+  accepted: string[];
+  rejected: string[];
+  note?: string;
+}
+
+export async function sendEmail(data: {
+  to: string;
+  subject: string;
+  body: string;
+}): Promise<SendEmailResponse> {
+  return apiFetch<SendEmailResponse>('/communication/emails/send', {
+    method: 'POST',
+    body: data,
+  });
+}

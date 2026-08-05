@@ -3,6 +3,7 @@ import { Modal, Button, Input, Field, Select, Textarea, ConfirmDialog, useToast 
 import { formatDate, formatGBP } from '@/shared/lib/format';
 import {
   fetchEmailTemplates,
+  sendEmail,
   substitutePlaceholders,
   type EmailTemplate,
 } from '@/features/communication/api/communicationApi';
@@ -107,6 +108,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
   const [errors, setErrors] = useState<Partial<Record<keyof EmailForm, string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
   const { show } = useToast();
 
   useEffect(() => {
@@ -160,11 +162,27 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
     setShowConfirm(true);
   }
 
-  function handleConfirmSend() {
+  async function handleConfirmSend() {
     setShowConfirm(false);
-    show(`Email sent to ${form.to}`);
-    setForm({ to: '', subject: '', body: '' });
-    onSend();
+    setSending(true);
+    try {
+      const result = await sendEmail({
+        to: form.to,
+        subject: form.subject,
+        body: form.body,
+      });
+      if (result.sent) {
+        show(`Email sent to ${form.to}`);
+        setForm({ to: '', subject: '', body: '' });
+        onSend();
+      } else {
+        show(result.note || 'Email not sent');
+      }
+    } catch {
+      show('Failed to send email');
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleClose() {
@@ -186,9 +204,9 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
         maxWidth="max-w-lg"
         footer={
           <>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button variant="primary" onClick={handleSendClick} disabled={loading}>
-              {loading ? 'Loading template…' : 'Send Email'}
+            <Button onClick={handleClose} disabled={sending}>Cancel</Button>
+            <Button variant="primary" onClick={handleSendClick} disabled={loading || sending}>
+              {loading ? 'Loading template…' : sending ? 'Sending…' : 'Send Email'}
             </Button>
           </>
         }
