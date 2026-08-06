@@ -130,7 +130,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
         const est = detail?.assignedEstimator ?? null;
         setTemplates(tpls);
         setEstimator(est);
-        setForm(buildEmailForm('client', tender, tpls, est));
+        setForm(buildEmailForm('client', detail ?? tender, tpls, est));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

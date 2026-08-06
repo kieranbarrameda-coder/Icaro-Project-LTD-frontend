@@ -373,18 +373,55 @@ interface SupplierEmailModalProps {
   onClose: () => void;
 }
 
+function buildEnquiryBody(s: Pick<SupplierDetail, 'contact' | 'company'>): string {
+  return `Dear ${s.contact},\n\nI am writing to you regarding ${s.company}.\n\nPlease get in touch at your earliest convenience.\n\nKind regards,\n[Your Name]\nICARO Projects`;
+}
+
 function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) {
   const [to, setTo] = useState(detail.email || '');
   const [subject, setSubject] = useState(`Enquiry — ${detail.company}`);
-  const [body, setBody] = useState(
-    `Dear ${detail.contact},\n\nI am writing to you regarding ${detail.company}.\n\nPlease get in touch at your earliest convenience.\n\nKind regards,\n[Your Name]\nICARO Projects`,
-  );
+  const [body, setBody] = useState(buildEnquiryBody(detail));
   const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(() => new Set(detail.dropboxLinks.map((l) => l.id)));
   const [errors, setErrors] = useState<Partial<Record<'to' | 'subject' | 'body', string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const { show } = useToast();
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setErrors({});
+    setSendError(null);
+    setShowConfirm(false);
+    setSending(false);
+    fetchSupplierById(detail.id)
+      .then((fresh) => {
+        if (cancelled) return;
+        setLoadError(false);
+        setTo(fresh.email || '');
+        setSubject(`Enquiry — ${fresh.company}`);
+        setBody(buildEnquiryBody(fresh));
+        setSelectedLinkIds(new Set(fresh.dropboxLinks.map((l) => l.id)));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLoadError(true);
+        setTo(detail.email || '');
+        setSubject(`Enquiry — ${detail.company}`);
+        setBody(buildEnquiryBody(detail));
+        setSelectedLinkIds(new Set(detail.dropboxLinks.map((l) => l.id)));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleLink(id: string) {
     setSelectedLinkIds((prev) => {
@@ -448,57 +485,71 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
         maxWidth="max-w-lg"
         footer={
           <>
-            <Button onClick={handleClose} disabled={sending}>Cancel</Button>
-            <Button variant="primary" onClick={handleSendClick} disabled={sending}>
+            <Button onClick={handleClose} disabled={sending || loading}>Cancel</Button>
+            <Button variant="primary" onClick={handleSendClick} disabled={sending || loading}>
               {sending ? 'Sending…' : 'Send Email'}
             </Button>
           </>
         }
       >
-        {sendError && (
-          <div className="rounded-lg px-4 py-3 text-sm bg-status-red-bg text-status-red border border-status-red mb-4">
-            {sendError}
+        {loading ? (
+          <div className="flex items-center justify-center py-12 text-text-secondary">
+            <Loader2 size={20} className="animate-spin mr-2" />
+            Loading supplier...
           </div>
-        )}
-        <Field label="To" error={errors.to}>
-          <Input type="email" placeholder="recipient@example.com" value={to} onChange={(e) => setTo(e.target.value)} />
-        </Field>
-        <Field label="Subject" error={errors.subject}>
-          <Input value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
-        </Field>
+        ) : (
+          <>
+            {loadError && (
+              <div className="rounded-lg px-4 py-3 text-sm bg-status-red-bg text-status-red border border-status-red mb-4">
+                Failed to load latest supplier details
+              </div>
+            )}
+            {sendError && (
+              <div className="rounded-lg px-4 py-3 text-sm bg-status-red-bg text-status-red border border-status-red mb-4">
+                {sendError}
+              </div>
+            )}
+            <Field label="To" error={errors.to}>
+              <Input type="email" placeholder="recipient@example.com" value={to} onChange={(e) => setTo(e.target.value)} />
+            </Field>
+            <Field label="Subject" error={errors.subject}>
+              <Input value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
+            </Field>
 
-        {detail.dropboxLinks.length > 0 && (
-          <div>
-            <p className="eyebrow text-text-muted mb-1.5 text-[11px] uppercase tracking-wider">
-              Dropbox Links to Include
-            </p>
-            <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
-              {detail.dropboxLinks.map((link) => (
-                <label
-                  key={link.id}
-                  className="flex items-start gap-2 rounded-md px-2.5 py-1.5 bg-bg-panel-hover border border-border-subtle cursor-pointer text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedLinkIds.has(link.id)}
-                    onChange={() => toggleLink(link.id)}
-                    className="mt-0.5 accent-gold"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-text-primary text-[13px]">{link.fileName}</span>
-                    {link.description && (
-                      <span className="text-text-muted text-[11px] ml-1">— {link.description}</span>
-                    )}
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
+            {detail.dropboxLinks.length > 0 && (
+              <div>
+                <p className="eyebrow text-text-muted mb-1.5 text-[11px] uppercase tracking-wider">
+                  Dropbox Links to Include
+                </p>
+                <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
+                  {detail.dropboxLinks.map((link) => (
+                    <label
+                      key={link.id}
+                      className="flex items-start gap-2 rounded-md px-2.5 py-1.5 bg-bg-panel-hover border border-border-subtle cursor-pointer text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLinkIds.has(link.id)}
+                        onChange={() => toggleLink(link.id)}
+                        className="mt-0.5 accent-gold"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-text-primary text-[13px]">{link.fileName}</span>
+                        {link.description && (
+                          <span className="text-text-muted text-[11px] ml-1">— {link.description}</span>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        <Field label="Body" error={errors.body}>
-          <Textarea rows={12} value={body} maxLength={10000} onChange={(e) => setBody(e.target.value)} className="font-mono text-[12px] leading-relaxed" />
-        </Field>
+            <Field label="Body" error={errors.body}>
+              <Textarea rows={12} value={body} maxLength={10000} onChange={(e) => setBody(e.target.value)} className="font-mono text-[12px] leading-relaxed" />
+            </Field>
+          </>
+        )}
       </Modal>
 
       <ConfirmDialog
