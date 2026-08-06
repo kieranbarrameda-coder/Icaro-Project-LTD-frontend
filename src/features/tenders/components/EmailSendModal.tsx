@@ -109,6 +109,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const { show } = useToast();
 
   useEffect(() => {
@@ -116,6 +117,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
     let cancelled = false;
     setLoading(true);
     setErrors({});
+    setSendError(null);
     setRecipientType('client');
     setTemplates([]);
     setEstimator(null);
@@ -140,6 +142,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
 
   function handleRecipientChange(type: RecipientType) {
     setRecipientType(type);
+    setSendError(null);
     setForm(buildEmailForm(type, tender!, templates, estimator));
   }
 
@@ -176,10 +179,10 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
         setForm({ to: '', subject: '', body: '' });
         onSend();
       } else {
-        show(result.note || 'Email not sent');
+        setSendError('Email sending failed');
       }
     } catch {
-      show('Failed to send email');
+      setSendError('Email sending failed');
     } finally {
       setSending(false);
     }
@@ -188,6 +191,7 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
   function handleClose() {
     setForm({ to: '', subject: '', body: '' });
     setErrors({});
+    setSendError(null);
     onClose();
   }
 
@@ -217,6 +221,11 @@ export function EmailSendModal({ open, tender, onClose, onSend }: EmailSendModal
           </div>
         ) : (
           <>
+            {sendError && (
+              <div className="rounded-lg px-4 py-3 text-sm bg-status-red-bg text-status-red border border-status-red mb-4">
+                {sendError}
+              </div>
+            )}
             <Field label="Recipient">
               <Select
                 value={recipientType}

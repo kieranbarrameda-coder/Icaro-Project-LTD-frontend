@@ -4,6 +4,7 @@ import { Modal, Button, Input, Textarea, Field, Select, ConfirmDialog, useToast 
 import { TRADES, type SupplierDetail, type Trade } from '../data/suppliers';
 import { supplierSchema, type SupplierInput } from '../data/validation';
 import { fetchSupplierById, updateSupplier, deleteSupplier, restoreSupplier, permanentDeleteSupplier } from '../api/supplierApi';
+import { sendEmail } from '@/features/communication/api/communicationApi';
 import { ApiError } from '@/lib/api/authApi';
 
 interface SupplierDetailModalProps {
@@ -381,6 +382,8 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
   const [selectedLinkIds, setSelectedLinkIds] = useState<Set<string>>(() => new Set(detail.dropboxLinks.map((l) => l.id)));
   const [errors, setErrors] = useState<Partial<Record<'to' | 'subject' | 'body', string>>>({});
   const [showConfirm, setShowConfirm] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const { show } = useToast();
 
   function toggleLink(id: string) {
@@ -401,18 +404,36 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
     setShowConfirm(true);
   }
 
-  function handleConfirmSend() {
+  async function handleConfirmSend() {
     setShowConfirm(false);
-    show(`Email sent to ${to}`);
-    setTo('');
-    setSubject('');
-    setBody('');
-    setSelectedLinkIds(new Set());
-    onClose();
+    setSending(true);
+    try {
+      const selectedLinks = detail.dropboxLinks.filter((l) => selectedLinkIds.has(l.id));
+      const bodyWithLinks =
+        selectedLinks.length > 0
+          ? `${body}\n\nRelevant documents:\n${selectedLinks.map((l) => `- ${l.fileName}: ${l.dropboxUrl}`).join('\n')}`
+          : body;
+      const result = await sendEmail({ to, subject, body: bodyWithLinks });
+      if (result.sent) {
+        show(`Email sent to ${to}`);
+        setTo('');
+        setSubject('');
+        setBody('');
+        setSelectedLinkIds(new Set());
+        onClose();
+      } else {
+        setSendError('Email sending failed');
+      }
+    } catch {
+      setSendError('Email sending failed');
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleClose() {
     setErrors({});
+    setSendError(null);
     onClose();
   }
 
@@ -427,16 +448,23 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
         maxWidth="max-w-lg"
         footer={
           <>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button variant="primary" onClick={handleSendClick}>Send Email</Button>
+            <Button onClick={handleClose} disabled={sending}>Cancel</Button>
+            <Button variant="primary" onClick={handleSendClick} disabled={sending}>
+              {sending ? 'Sending…' : 'Send Email'}
+            </Button>
           </>
         }
       >
+        {sendError && (
+          <div className="rounded-lg px-4 py-3 text-sm bg-status-red-bg text-status-red border border-status-red mb-4">
+            {sendError}
+          </div>
+        )}
         <Field label="To" error={errors.to}>
           <Input type="email" placeholder="recipient@example.com" value={to} onChange={(e) => setTo(e.target.value)} />
         </Field>
         <Field label="Subject" error={errors.subject}>
-          <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Input value={subject} maxLength={200} onChange={(e) => setSubject(e.target.value)} />
         </Field>
 
         {detail.dropboxLinks.length > 0 && (
@@ -469,7 +497,7 @@ function SupplierEmailModal({ open, detail, onClose }: SupplierEmailModalProps) 
         )}
 
         <Field label="Body" error={errors.body}>
-          <Textarea rows={12} value={body} onChange={(e) => setBody(e.target.value)} className="font-mono text-[12px] leading-relaxed" />
+          <Textarea rows={12} value={body} maxLength={10000} onChange={(e) => setBody(e.target.value)} className="font-mono text-[12px] leading-relaxed" />
         </Field>
       </Modal>
 
